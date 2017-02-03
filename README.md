@@ -1,6 +1,8 @@
 The following elements are required to use XESPlugin:
-Pentaho Data Integration, which can be downloaded from: (http://community.pentaho.com/projects/data-integration/)
-XESPlugin and OpenXES libraries (lib-xes)
+
+- Pentaho Data Integration, which can be downloaded from: (http://community.pentaho.com/projects/data-integration/)
+- XESPlugin and OpenXES libraries (lib-xes)
+
 The procedure to integrate XESPlugin into Pentaho DI is very simple. You just need to copy the XESPlugin folder containing the .jar into the Pentaho plugins folder, then copy the OpenXES libraries into Pentaho's libs folder. Once this is done, the plugin can be accessed from the Output section in Pentaho DI.
 
 Once the XESPlugin configuration window is opened, two fields are visible at the top. The first field allows the user to modify the name of the step, which it is displayed on the Pentaho DI transformations board. The second field is the output path of the resulting XES file, followed by a search button. Pressing the button opens a window to browse among PC folders so you can indicate the address where you want to store the generated XES. This address, once selected, is displayed in the text field next to the button, allowing further modifications to the route. If no path is selected to store the plugin, it generates the XES file in the Pentaho DI base folder.
