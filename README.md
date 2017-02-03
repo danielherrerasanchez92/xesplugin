@@ -6,8 +6,8 @@ This is a plugin for Pentaho Data Integration to create XES files for Process Mi
 
 The following elements are required to use XESPlugin:  
 
-    Pentaho 	Data Integration, which can be downloaded from: 	(http://community.pentaho.com/projects/data-integration/) 
-    XESPlugin 	and OpenXES libraries (within 	the compressed files) 
+* Pentaho Data Integration, which can be downloaded from: 	(http://community.pentaho.com/projects/data-integration/) 
+* XESPlugin and OpenXES libraries (within 	the compressed files) 
 
 The procedure to integrate XESPlugin into Pentaho DI is very simple. You just need to copy the XESPlugin folder containing the .jar into the Pentaho plugins folder, then copy the OpenXES libraries into Pentaho's libs folder. Once this is done, the plugin can be accessed from the Output section in Pentaho DI.  
 ![output](http://i.imgur.com/Uk2T2Vr.png)
