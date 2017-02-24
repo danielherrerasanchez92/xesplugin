@@ -15,7 +15,7 @@ The procedure to integrate XESPlugin into Pentaho DI is very simple. You just ne
 Once the XESPlugin configuration window is opened, two fields are visible at the top. The first field allows the user to modify the name of the step, which it is displayed on the Pentaho DI transformations board. The second field is the output path of the resulting XES file, followed by a search button. Pressing the button opens a window to browse among PC folders so you can indicate the address where you want to store the generated XES. This address, once selected, is displayed in the text field next to the button, allowing further modifications to the route. If no path is selected to store the plugin, it generates the XES file in the Pentaho DI base folder. Right now XESPlugin is divided into three tabs, each one contains the elements to build a XES log. The distribution of the elements by tabs is presented below:
 
 Identity tab:   
-![identity tab](https://g52i.imgup.net/ID1388.png)
+![identity tab](https://image.ibb.co/cesO0a/ID.png)
 
 The ID tab contains the visual elements to relate the plugin with the event log in terms of unique identifier. It is mandatory to specify an ID column if you are using the parent ID property from Micro extension.
 
@@ -43,11 +43,11 @@ Resources tab:
 The resources tab contains the visual elements to relate the plugin with the event log in terms of Resource, Role and Group. Like the other elements we’ve discussed so far, if any of these is not present in the data source, the combo box can be left blank and will not be taken into account by XESPlugin when generating the XES log. 
 
 Micro tab:    
-![micro tab](https://o28i.imgup.net/Micro8706.png)
+![micro tab](https://image.ibb.co/hMhdYv/Micro.png)
 The Micro tab contains the visual elements to relate the plugin with the event log in terms of event level and parent ID. If a parent ID is specified, an ID column must be selected in Identity tab. The event log must be sorted so if an event has a parent, this parent must be processed before its child events. If this condition is not fulfilled the plugin will launch an error in the Pentaho console, showing the line of the event log where the error occurred.  
 
 Cost tab:    
-![cost tab](https://ibb.co/cSikDv)
+![cost tab](https://image.ibb.co/fPBu6F/Cost.png)
 The Cost tab contains the visual elements to relate the plugin with the event log in terms of total cost of events, traces and the currency.  
 
 This plugin is at an early development stage as you may notice, so it’s far away from being fully implemented. So far its capable of recognizing an input stream of events, and parse a XES file using some of the standard extensions. It also allows you to store the configuration parameters in a *.ktr or Pentaho repository. This version is only intended to be tested by the community, hoping you can give us your thoughts about it. We will be working on improving the plugin based on what you can tell us, and also with some other interesting ideas we have on the plate right now.   
