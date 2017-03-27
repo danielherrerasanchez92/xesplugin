@@ -319,11 +319,9 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                 valor_ID = DescifrarPalabra(r[i]);
                 if (!valor_ID.isEmpty() && !valor_ID.equals("null")) {
                     XID xid = event.getID();
-                    if (arrayContains(nombresColumnas, "IDPadre")) {
-                        this.mapaID.put(valor_ID, xid);
-                    }
+                    this.mapaID.put(valor_ID, xid);
                     map.put("IDKey", new XAttributeIDImpl("identity:id", xid));
-                    map.put("IDKey", new XAttributeLiteralImpl("id", valor_ID));
+                    map.put("IDKeyXID", new XAttributeLiteralImpl("id", valor_ID));
                     this.mapaUsoAtributos.put("id", true);
                 }
             } else if (nombresColumnas[i].equalsIgnoreCase(this.mapa_columnas.get("Moneda"))) {
