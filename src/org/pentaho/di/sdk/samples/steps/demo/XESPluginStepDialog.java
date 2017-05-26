@@ -41,13 +41,22 @@ import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.TransMeta;
+import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.ui.core.dialog.ErrorDialog;
 import org.pentaho.di.ui.core.dialog.ShowMessageDialog;
+import org.pentaho.di.ui.core.widget.ColumnInfo;
+import org.pentaho.di.ui.core.widget.TableView;
+import org.pentaho.di.ui.core.widget.TextVar;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDialogInterface;
 import org.pentaho.di.core.Props;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -66,8 +75,8 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
     private static Class<?> PKG = XESPluginStepMeta.class; // for i18n purposes
 
     private XESPluginStepMeta meta;
-
-    private Text wRutaSalida;
+    // Outputpath
+    private TextVar wRutaSalida;
     private Listener lsRuta;
 
     private CTabFolder wTabFolder;
@@ -90,6 +99,7 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
     private Combo cmbIProceso;
     private Combo cmbActividad;
     private Combo cmbCicloVida;
+    private Combo cmbActivityInstans;
 
     /*
     * Time extension
@@ -101,7 +111,7 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
     private Combo cmbTimeStamp;
     private Label wlRegex;
     private Combo cmbregexTimeStamp;
-    private Text wNuevaRegex;
+    private TextVar wNuevaRegex1;
     private Button btnNuevaRegex;
     private Label wlNuevaRegex;
     private Listener lsNuevaRegex;
@@ -153,6 +163,21 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
     private int middle;
     private int margin;
     private ModifyListener lsMod;
+
+    //** Table of new atributes
+    private CTabItem wFieldsTab;
+    private Composite wFieldsComp;
+
+
+    private TableView wFields;
+    private FormData fdFields;
+    private String [] Tipos={"","Case","Activity"};
+    private String [] Datos={"","String","Integer", "Date", "Float", "Boolean", "ID"};
+    private int cont=0;
+
+    private ColumnInfo[] colinf;
+    private Map<Integer,XESPluginField> newatrib = new HashMap<>();
+    int numFields;
 
     /**
      * The constructor should simply invoke super() and save the incoming meta
@@ -239,13 +264,12 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         fdlStepname.right = new FormAttachment(middle, -margin);
         fdlStepname.top = new FormAttachment(0, margin);
         wlStepname.setLayoutData(fdlStepname);
-
         wStepname = new Text(shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
         wStepname.setText(stepname);
         props.setLook(wStepname);
         wStepname.addModifyListener(lsMod);
         fdStepname = new FormData();
-        fdStepname.left = new FormAttachment(middle, 0);
+        fdStepname.left = new FormAttachment(middle, margin);
         fdStepname.top = new FormAttachment(0, margin);
         fdStepname.right = new FormAttachment(100, 0);
         wStepname.setLayoutData(fdStepname);
@@ -268,7 +292,7 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         fdBtnRuta.top = new FormAttachment(wStepname, margin);
         btnRuta.setLayoutData(fdBtnRuta);
 
-        wRutaSalida = new Text(shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wRutaSalida = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
         props.setLook(wRutaSalida);
         wRutaSalida.addModifyListener(lsMod);
         FormData fdRutaSalida = new FormData();
@@ -281,12 +305,14 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         wTabFolder = new CTabFolder(shell, SWT.BORDER);
         props.setLook(wTabFolder, Props.WIDGET_STYLE_TAB);
 
-        AddIdentityTab();
+        //Llama a los tabs para crearlos en orden especifico
         AddProcessTab();
         AddTimeTab();
         AddResourceTab();
+        AddIdentityTab();
         AddMicroTab();
         AddCostTab();
+        field();
 
         //Setting tooltip text
         SetTooltipText();
@@ -343,6 +369,7 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         wStepname.addSelectionListener(lsDef);
         cmbIProceso.addSelectionListener(lsDef);
         cmbActividad.addSelectionListener(lsDef);
+        cmbActivityInstans.addSelectionListener(lsDef);
         cmbTimeStamp.addSelectionListener(lsDef);
         cmbregexTimeStamp.addSelectionListener(lsDef);
         cmbCicloVida.addSelectionListener(lsDef);
@@ -363,7 +390,6 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         // Set/Restore the dialog size based on last position on screen
         // The setSize() method is inherited from BaseStepDialog
         setSize();
-
         // populate the dialog with the values from the meta object
         populateDialog();
 
@@ -381,15 +407,16 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         // The "stepname" variable is inherited from BaseStepDialog
         return stepname;
     }
-
+    // tooltip Text of comboboxes
     private void SetTooltipText(){
         cmbID.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.ID"));
         cmbIProceso.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.IP"));
         cmbActividad.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Activity"));
         cmbCicloVida.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Lifecycle"));
+        cmbActivityInstans.setToolTipText(BaseMessages.getString(PKG, "XESPluginTooltip.Activity_Instans"));
         cmbTimeStamp.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Timestamp"));
         cmbregexTimeStamp.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Timestamp_regex_select"));
-        wNuevaRegex.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Timestamp_regex_write"));
+        wNuevaRegex1.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Timestamp_regex_write"));
         cmbRecurso.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Resource"));
         cmbRol.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Role"));
         cmbGrupo.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Group"));
@@ -398,69 +425,9 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         cmbCostTotalTrace.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.TotalTrace"));
         cmbCostTotalEvent.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.TotalEvent"));
         cmbCostCurrency.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Currency"));
-    }
+        cmbActivityInstans.setToolTipText(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Activity_Instans"));
 
-    private void AddIdentityTab() {
-        //**************
-        // Identity tab*
-        //**************
 
-        wIDTab = new CTabItem(wTabFolder, SWT.NONE);
-        wIDTab.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Identity.Tabname"));
-        wIDComp = new Composite(wTabFolder, SWT.NONE);
-        props.setLook(wIDComp);
-
-        FormLayout idLayout = new FormLayout();
-        idLayout.marginWidth = 3;
-        idLayout.marginHeight = 3;
-        wIDComp.setLayout(idLayout);
-
-        wIDGroup = new Group(wIDComp, SWT.SHADOW_NONE);
-        props.setLook(wIDGroup);
-        wIDGroup.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Identity.Groupname"));
-
-        FormLayout idgroupLayout = new FormLayout();
-        idgroupLayout.marginWidth = 10;
-        idgroupLayout.marginHeight = 10;
-        wIDGroup.setLayout(idgroupLayout);
-
-        //para ID
-        Label wlID = new Label(wIDGroup, SWT.RIGHT);
-        wlID.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Identity.ID"));
-        props.setLook(wlID);
-
-        FormData fdlID = new FormData();
-        fdlID.left = new FormAttachment(0, 0);
-        fdlID.right = new FormAttachment(middle, -margin);
-        fdlID.top = new FormAttachment(0, margin);
-        wlID.setLayoutData(fdlID);
-
-        cmbID = new Combo(wIDGroup, SWT.READ_ONLY);
-        props.setLook(cmbID);
-        cmbID.addModifyListener(lsMod);
-        cmbID.setItems(nombresDeColumnas);
-        FormData fdID = new FormData();
-        fdID.left = new FormAttachment(middle, 0);
-        fdID.right = new FormAttachment(100, 0);
-        fdID.top = new FormAttachment(0, margin);
-        cmbID.setLayoutData(fdID);
-
-        FormData fdIDGroup = new FormData();
-        fdIDGroup.left = new FormAttachment(0, margin);
-        fdIDGroup.top = new FormAttachment(0, margin);
-        fdIDGroup.right = new FormAttachment(100, -margin);
-        wIDGroup.setLayoutData(fdIDGroup);
-
-        FormData fdIDComp = new FormData();
-        fdIDComp.left = new FormAttachment(0, 0);
-        fdIDComp.top = new FormAttachment(0, 0);
-        fdIDComp.right = new FormAttachment(100, 0);
-        fdIDComp.bottom = new FormAttachment(100, 0);
-        wIDComp.setLayoutData(fdIDComp);
-
-        wIDComp.layout();
-        wIDTab.setControl(wIDComp);
-        props.setLook(wIDComp);
     }
 
     private void AddProcessTab() {
@@ -546,6 +513,26 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         fdCicloVida.right = new FormAttachment(100, 0);
         fdCicloVida.top = new FormAttachment(cmbActividad, margin);
         cmbCicloVida.setLayoutData(fdCicloVida);
+
+        //para activity instans
+        Label wlact = new Label(wProcessGroup, SWT.RIGHT);
+        wlact.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Process.Activity_Instans"));
+        props.setLook(wlact);
+        FormData fdlactv = new FormData();
+        fdlactv.left = new FormAttachment(0, 0);
+        fdlactv.right = new FormAttachment(middle, -margin);
+        fdlactv.top = new FormAttachment(cmbCicloVida, margin);
+        wlact.setLayoutData(fdlactv);
+
+        cmbActivityInstans = new Combo(wProcessGroup, SWT.READ_ONLY);
+        props.setLook(cmbActivityInstans);
+        cmbActivityInstans.addModifyListener(lsMod);
+        cmbActivityInstans.setItems(nombresDeColumnas);
+        FormData fdact = new FormData();
+        fdact.left = new FormAttachment(middle, 0);
+        fdact.right = new FormAttachment(100, 0);
+        fdact.top = new FormAttachment(cmbCicloVida, margin);
+        cmbActivityInstans.setLayoutData(fdact);
 
         FormData fdProcessGroup = new FormData();
         fdProcessGroup.left = new FormAttachment(0, margin);
@@ -648,31 +635,26 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         wlNuevaRegex.setLayoutData(fdlNuevaRegex);
         wlNuevaRegex.setEnabled(false);
 
-        wNuevaRegex = new Text(wTimeGroup, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-        props.setLook(wNuevaRegex);
-        wNuevaRegex.addModifyListener(lsMod);
+       // wNuevaRegex1 = new Text(wTimeGroup, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wNuevaRegex1 = new TextVar(transMeta, wTimeGroup, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        props.setLook(wNuevaRegex1);
+        wNuevaRegex1.addModifyListener(lsMod);
         FormData fdNuevaRegex = new FormData();
         fdNuevaRegex.left = new FormAttachment(middle, 0);
         fdNuevaRegex.top = new FormAttachment(btnNuevaRegex, margin);
         fdNuevaRegex.right = new FormAttachment(100, 0);
-        wNuevaRegex.setLayoutData(fdNuevaRegex);
-        wNuevaRegex.setEnabled(false);
-
+        wNuevaRegex1.setLayoutData(fdNuevaRegex);
+        wNuevaRegex1.setEnabled(false);
+        //
         //listener para adicionar una nueva expresion regular
         lsNuevaRegex = new Listener() {
             public void handleEvent(Event e) {
                 //codigo para nuevo regex
-                if (wNuevaRegex.isEnabled()) {
-                    wNuevaRegex.setEnabled(false);
-                    wlNuevaRegex.setEnabled(false);
-                    cmbregexTimeStamp.setEnabled(true);
-                    wlRegex.setEnabled(true);
-                } else {
-                    wNuevaRegex.setEnabled(true);
-                    wlNuevaRegex.setEnabled(true);
-                    cmbregexTimeStamp.setEnabled(false);
-                    wlRegex.setEnabled(false);
-                }
+                    boolean status = btnNuevaRegex.getSelection();
+                    wNuevaRegex1.setEnabled(status);
+                    wlNuevaRegex.setEnabled(status);
+                    cmbregexTimeStamp.setEnabled(!status);
+                    wlRegex.setEnabled(!status);
             }
         };
         btnNuevaRegex.addListener(SWT.Selection, lsNuevaRegex);
@@ -794,6 +776,69 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         wResourceComp.layout();
         wResourceTab.setControl(wResourceComp);
         props.setLook(wResourceComp);
+    }
+
+    private void AddIdentityTab() {
+        //**************
+        // Identity tab*
+        //**************
+
+        wIDTab = new CTabItem(wTabFolder, SWT.NONE);
+        wIDTab.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Identity.Tabname"));
+        wIDComp = new Composite(wTabFolder, SWT.NONE);
+        props.setLook(wIDComp);
+
+        FormLayout idLayout = new FormLayout();
+        idLayout.marginWidth = 3;
+        idLayout.marginHeight = 3;
+        wIDComp.setLayout(idLayout);
+
+        wIDGroup = new Group(wIDComp, SWT.SHADOW_NONE);
+        props.setLook(wIDGroup);
+        wIDGroup.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Identity.Groupname"));
+
+        FormLayout idgroupLayout = new FormLayout();
+        idgroupLayout.marginWidth = 10;
+        idgroupLayout.marginHeight = 10;
+        wIDGroup.setLayout(idgroupLayout);
+
+        //para ID
+        Label wlID = new Label(wIDGroup, SWT.RIGHT);
+        wlID.setText(BaseMessages.getString(PKG, "XESPlugin.Tab.Identity.ID"));
+        props.setLook(wlID);
+
+        FormData fdlID = new FormData();
+        fdlID.left = new FormAttachment(0, 0);
+        fdlID.right = new FormAttachment(middle, -margin);
+        fdlID.top = new FormAttachment(0, margin);
+        wlID.setLayoutData(fdlID);
+
+        cmbID = new Combo(wIDGroup, SWT.READ_ONLY);
+        props.setLook(cmbID);
+        cmbID.addModifyListener(lsMod);
+        cmbID.setItems(nombresDeColumnas);
+        FormData fdID = new FormData();
+        fdID.left = new FormAttachment(middle, 0);
+        fdID.right = new FormAttachment(100, 0);
+        fdID.top = new FormAttachment(0, margin);
+        cmbID.setLayoutData(fdID);
+
+        FormData fdIDGroup = new FormData();
+        fdIDGroup.left = new FormAttachment(0, margin);
+        fdIDGroup.top = new FormAttachment(0, margin);
+        fdIDGroup.right = new FormAttachment(100, -margin);
+        wIDGroup.setLayoutData(fdIDGroup);
+
+        FormData fdIDComp = new FormData();
+        fdIDComp.left = new FormAttachment(0, 0);
+        fdIDComp.top = new FormAttachment(0, 0);
+        fdIDComp.right = new FormAttachment(100, 0);
+        fdIDComp.bottom = new FormAttachment(100, 0);
+        wIDComp.setLayoutData(fdIDComp);
+
+        wIDComp.layout();
+        wIDTab.setControl(wIDComp);
+        props.setLook(wIDComp);
     }
 
     private void AddMicroTab() {
@@ -980,6 +1025,68 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         props.setLook(wCostComp);
     }
 
+    private void field (){
+        wFieldsTab = new CTabItem( wTabFolder, SWT.NONE );
+        wFieldsTab.setText( BaseMessages.getString( PKG, "XESPlugin.Tab.Fields.Tabname" ) );
+
+        FormLayout fieldsLayout = new FormLayout();
+        fieldsLayout.marginWidth = Const.FORM_MARGIN;
+        fieldsLayout.marginHeight = Const.FORM_MARGIN;
+
+        wFieldsComp = new Composite( wTabFolder, SWT.NONE );
+        wFieldsComp.setLayout( fieldsLayout );
+        props.setLook( wFieldsComp );
+
+        final int FieldsRows = 10;
+        //Creando columnas
+        colinf =
+                new ColumnInfo[] {
+                        new ColumnInfo(BaseMessages.getString( PKG, "XESPlugin.FieldName.Column"),
+                                ColumnInfo.COLUMN_TYPE_CCOMBO, nombresDeColumnas,false),
+                        new ColumnInfo( BaseMessages.getString( PKG, "XESPlugin.Name.Column" ),
+                                ColumnInfo.COLUMN_TYPE_TEXT, new String [] { "" }, false),
+                        new ColumnInfo( BaseMessages.getString( PKG, "XESPlugin.Type.Column" ),
+                                ColumnInfo.COLUMN_TYPE_CCOMBO, Tipos, false ),
+                        new ColumnInfo( BaseMessages.getString( PKG, "XESPlugin.Dat.Column"),
+                                ColumnInfo.COLUMN_TYPE_CCOMBO, Datos, false)};
+
+        colinf [0].setToolTip(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Entrys"));
+        colinf [1].setToolTip(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Fiiledname"));
+        colinf [2].setToolTip(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Typename"));
+        colinf [3].setToolTip(BaseMessages.getString(PKG, "XESPlugin.Tooltip.Dataname"));
+
+        colinf[1].setUsingVariables( true );
+        //Creando la tabla
+        wFields =
+                new TableView( transMeta, wFieldsComp, SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI, colinf, FieldsRows, lsMod,
+                        props );
+
+        fdFields = new FormData();
+        fdFields.left = new FormAttachment( 0, 0 );
+        fdFields.top = new FormAttachment( 0, 0 );
+        fdFields.right = new FormAttachment( 100, 0 );
+        fdFields.bottom = new FormAttachment( 100, -margin );
+        wFields.setLayoutData( fdFields );
+
+        FormData fdFieldsComp = new FormData();
+        fdFieldsComp.left = new FormAttachment( 0, 0 );
+        fdFieldsComp.top = new FormAttachment( 0, 0 );
+        fdFieldsComp.right = new FormAttachment( 100, 0 );
+        fdFieldsComp.bottom = new FormAttachment( 100, 0 );
+        wFieldsComp.setLayoutData( fdFieldsComp );
+
+        wFieldsComp.layout();
+        wFieldsTab.setControl( wFieldsComp );
+
+        FormData fdTabFolder = new FormData();
+        fdTabFolder.left = new FormAttachment( 0, 0 );
+        fdTabFolder.top = new FormAttachment( wStepname, margin );
+        fdTabFolder.right = new FormAttachment( 100, 0 );
+        fdTabFolder.bottom = new FormAttachment( 100, -50 );
+        wTabFolder.setLayoutData( fdTabFolder );
+
+    }
+
     //Metodo que se hace cargo de guardar la direccion de salida del xes
     private void OutputPathShow() {
         FileDialog dialog = new FileDialog(shell, SWT.SAVE);
@@ -1007,6 +1114,9 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
             if (meta.getMapa_vista().get("CicloVida") != null) {
                 cmbCicloVida.setText(meta.getMapa_vista().get("CicloVida"));
             }
+            if (meta.getMapa_vista().get("Activity_instans") != null) {
+                cmbActivityInstans.setText(meta.getMapa_vista().get("Activity_instans"));
+            }
             if (meta.getMapa_vista().get("Recurso") != null) {
                 cmbRecurso.setText(meta.getMapa_vista().get("Recurso"));
             }
@@ -1023,10 +1133,10 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
                 cmbTimeStamp.setText(meta.getMapa_vista().get("MarcaTiempo"));
             }
             if (meta.getMapa_vista().get("RegexMarcaTiempo") != null) {
-                wNuevaRegex.setEnabled(true);
+                wNuevaRegex1.setEnabled(true);
                 wlNuevaRegex.setEnabled(true);
                 btnNuevaRegex.setSelection(true);
-                wNuevaRegex.setText(meta.getMapa_vista().get("RegexMarcaTiempo"));
+                wNuevaRegex1.setText(meta.getMapa_vista().get("RegexMarcaTiempo"));
 
                 wlRegex.setEnabled(false);
                 cmbregexTimeStamp.setEnabled(false);
@@ -1049,6 +1159,32 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
             if (meta.getMapa_vista().get("EventoTotal") != null) {
                 cmbCostTotalEvent.setText(meta.getMapa_vista().get("EventoTotal"));
             }
+        }
+        //codigo para escribir las celdas de la tabla
+        if(meta.getNewatr() != null) {
+            for (int k = 0; k < meta.getNewatr().size(); k++) {
+                XESPluginField f = meta.getNewatr().get(k);
+
+                TableItem item = wFields.table.getItem(k);
+                item.setText( 1, Const.NVL( f.getName(), "" ) );
+                item.setText( 2, Const.NVL( f.getFieldName(), "" ) );
+                item.setText( 3, Const.NVL( f.getTypename(), "" ) );
+                item.setText( 4, Const.NVL( f.getDatodname(), "" ) );
+            }
+        }
+    }
+
+    //**
+    // Metodo para Adicionar Atributo desde la tabla
+    //**
+    private void getInfo(){
+         numFields = wFields.nrNonEmpty();
+        for(int k=0;k<numFields;k++){
+
+            TableItem item=wFields.getNonEmpty(k);
+            XESPluginField field = new XESPluginField(item.getText(1),item.getText(2), item.getText(3), item.getText(4));
+            newatrib.put(cont, field);
+            cont++;
         }
     }
 
@@ -1077,6 +1213,11 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
 //        int test = cmbCicloVida.getSelectionIndex();
 
         MessageBox dialog_error = new MessageBox(shell, SWT.OK | SWT.ICON_ERROR);
+
+        //metodo para adicionar nuvos atributos
+        getInfo();
+
+        //Validaciones de datos
         Map<String, String> map_vista = new HashMap<>();
         int response_code = 0;
 
@@ -1100,8 +1241,8 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
                     response_code = dialog_error.open();
                 }
             } else {
-                if (wNuevaRegex.getText() != null) {
-                    map_vista.put("RegexMarcaTiempo", wNuevaRegex.getText().trim());
+                if (wNuevaRegex1.getText() != null) {
+                    map_vista.put("RegexMarcaTiempo", wNuevaRegex1.getText().trim());
                 }else{
                     dialog_error.setText(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.GenericError.Title"));
                     dialog_error.setMessage(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.TimestampRegexNotSpecified.Description"));
@@ -1119,6 +1260,12 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         }
         if (cmbCicloVida.getSelectionIndex() != -1) {
             map_vista.put("CicloVida", cmbCicloVida.getItem(cmbCicloVida.getSelectionIndex()));
+        }
+        if (cmbActivityInstans.getSelectionIndex() != -1){
+            map_vista.put("Activity_instans", cmbActivityInstans.getItem(cmbActivityInstans.getSelectionIndex()));
+        }
+        if (cmbActivityInstans.getSelectionIndex() != -1) {
+            map_vista.put("Activity_Instans", cmbActivityInstans.getItem(cmbActivityInstans.getSelectionIndex()));
         }
         if (cmbRecurso.getSelectionIndex() != -1) {
             map_vista.put("Recurso", cmbRecurso.getItem(cmbRecurso.getSelectionIndex()));
@@ -1155,9 +1302,10 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         if (this.wRutaSalida.getText() != null) {
             map_vista.put("RutaSalida", this.wRutaSalida.getText().trim());
         }
-
+            //Guardando mapas de entrada de datos
         meta.setMapa_vista(map_vista);
-
+        meta.setNewatr(newatrib);
+        meta.setCont(cont);
         // close the SWT dialog window
 
         if (response_code != 32) //code 32 para boton aceptar

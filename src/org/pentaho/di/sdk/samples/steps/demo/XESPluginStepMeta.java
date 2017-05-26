@@ -26,9 +26,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.thoughtworks.xstream.converters.extended.ToStringConverter;
+import org.apache.commons.lang.builder.ToStringBuilder;
 import org.eclipse.swt.widgets.Shell;
 import org.pentaho.di.core.CheckResult;
 import org.pentaho.di.core.CheckResultInterface;
+import org.pentaho.di.core.Const;
 import org.pentaho.di.core.annotations.Step;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.exception.KettleException;
@@ -52,7 +55,12 @@ import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;
 import org.pentaho.metastore.api.IMetaStore;
+import org.pentaho.metastore.stores.xml.XmlMetaStore;
+import org.pentaho.metastore.stores.xml.XmlMetaStoreAttribute;
+import org.pentaho.metastore.stores.xml.XmlMetaStoreElement;
 import org.w3c.dom.Node;
+
+import javax.xml.crypto.dsig.XMLObject;
 
 
 @Step(
@@ -71,13 +79,10 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
      */
     private static Class<?> PKG = XESPluginStepMeta.class; // for i18n purposes
 
-    /**
-     * Stores the name of the field added to the row-stream.
-     */
-//    private String outputField; //dummy variable
-
-    //MINE
-    private Map<String, String> mapa_vista;
+    //Declaraciones para el manejo de datos
+    private Map<String, String> mapa_vista; //Mapa que recibe los nombres de columnas escogidos
+    private Map<Integer,XESPluginField> newatr; //Mapa que recibe los nuevos atributos
+    private int cont; // Contador para el trabajo con los nuevos atributos
 
     public Map<String, String> getMapa_vista() {
         return mapa_vista;
@@ -87,6 +92,21 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
         this.mapa_vista = mapa_vista;
     }
 
+    public Map<Integer, XESPluginField> getNewatr() {
+        return newatr;
+    }
+
+    public void setNewatr(Map<Integer, XESPluginField> newatr) {
+        this.newatr = newatr;
+    }
+
+    public int getCont() {
+        return cont;
+    }
+
+    public void setCont(int cont) {
+        this.cont = cont;
+    }
 
     /**
      * Constructor should call super() to make sure the base class has a chance to initialize properly.
@@ -94,6 +114,7 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
     public XESPluginStepMeta() {
         super();
         this.mapa_vista = new HashMap<>();
+        this.newatr = new HashMap<>();
     }
 
     /**
@@ -175,6 +196,9 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
         if (this.mapa_vista.get("CicloVida") != null) {
             stringBuffer.append(XMLHandler.addTagValue("CicloVida", this.mapa_vista.get("CicloVida")));
         }
+        if (this.mapa_vista.get("Activity_instans") != null){
+            stringBuffer.append(XMLHandler.addTagValue("Activity_instans", this.mapa_vista.get("Activity_instans")));
+        }
         if (this.mapa_vista.get("Recurso") != null) {
             stringBuffer.append(XMLHandler.addTagValue("Recurso", this.mapa_vista.get("Recurso")));
         }
@@ -212,6 +236,20 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
         if (this.mapa_vista.get("EventoTotal") != null) {
             stringBuffer.append(XMLHandler.addTagValue("EventoTotal", this.mapa_vista.get("EventoTotal")));
         }
+        //Para guardar los nuevos atributos
+        stringBuffer.append( "    <fields>" ).append( Const.CR );
+        for (int k=0;k<cont;k++) {
+            XESPluginField f = newatr.get(k);
+            if (f.getName() !=null) {
+                stringBuffer.append("      <field>").append(Const.CR);
+                stringBuffer.append("        " ).append( XMLHandler.addTagValue("name", f.getName()));
+                stringBuffer.append("        " ).append( XMLHandler.addTagValue("fieldname", f.getFieldName()));
+                stringBuffer.append("        " ).append( XMLHandler.addTagValue("type", f.getTypename()));
+                stringBuffer.append("        " ).append( XMLHandler.addTagValue("data", f.getDatodname()));
+                stringBuffer.append( "    </field>" + Const.CR );
+            }
+        }
+        stringBuffer.append( "    </fields>" ).append( Const.CR );
         return stringBuffer.toString();
     }
 
@@ -235,6 +273,9 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             }
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "CicloVida")) != null) {
                 this.mapa_vista.put("CicloVida", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "CicloVida")));
+            }
+            if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "Activity_instans")) != null){
+                this.mapa_vista.put("Activity_instans", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "Activity_instans")));
             }
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "Recurso")) != null) {
                 this.mapa_vista.put("Recurso", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "Recurso")));
@@ -273,6 +314,15 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "EventoTotal")) != null) {
                 this.mapa_vista.put("EventoTotal", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "EventoTotal")));
             }
+            //Para leer los nuevos atributos
+                Node fields = XMLHandler.getSubNode( stepnode, "fields" );
+                int nrfields = XMLHandler.countNodes( fields, "field" );
+
+                for ( int i = 0; i < nrfields; i++ ) {
+                    Node fnode = XMLHandler.getSubNodeByNr(fields, "field", i);
+
+                    newatr.put(i,new XESPluginField(XMLHandler.getTagValue( fnode, "name" ), XMLHandler.getTagValue( fnode, "fieldname" ), XMLHandler.getTagValue( fnode, "type" ), XMLHandler.getTagValue( fnode, "data" )));
+                }
         } catch (Exception e) {
             throw new KettleXMLException("XESPlugin unable to read step info from XML node", e);
         }
@@ -297,6 +347,9 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             }
             if (this.mapa_vista.get("CicloVida") != null) {
                 rep.saveStepAttribute(id_transformation, id_step, "CicloVida", this.mapa_vista.get("CicloVida"));
+            }
+            if (this.mapa_vista.get("Activity_instans")  != null){
+                rep.saveStepAttribute(id_transformation, id_step, "Activity_instans", this.mapa_vista.get("Activity_instans"));
             }
             if (this.mapa_vista.get("Recurso") != null) {
                 rep.saveStepAttribute(id_transformation, id_step, "Recurso", this.mapa_vista.get("Recurso"));
@@ -335,6 +388,16 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             if (this.mapa_vista.get("EventoTotal") != null) {
                 rep.saveStepAttribute(id_transformation, id_step, "EventoTotal", this.mapa_vista.get("EventoTotal"));
             }
+            //Para guardar los nuevos atributos
+            for (int k=0; k<cont;k++){
+                XESPluginField f = newatr.get(k);
+                if (f.getName() !=null) {
+                    rep.saveStepAttribute(id_transformation, id_step, "name", f.getName());
+                    rep.saveStepAttribute(id_transformation, id_step, "fieldname", f.getFieldName());
+                    rep.saveStepAttribute(id_transformation, id_step, "type", f.getTypename());
+                    rep.saveStepAttribute(id_transformation, id_step, "data", f.getDatodname());
+                }
+            }
         } catch (Exception e) {
             throw new KettleException("Unable to save step into repository: " + id_step, e);
         }
@@ -359,6 +422,9 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             }
             if (rep.getStepAttributeString(id_step, "CicloVida") != null) {
                 this.mapa_vista.put("CicloVida", rep.getStepAttributeString(id_step, "CicloVida"));
+            }
+            if (rep.getStepAttributeString(id_step, "Activity_instans") != null) {
+                this.mapa_vista.put("Activity_instans", rep.getStepAttributeString(id_step, "Activity_instans"));
             }
             if (rep.getStepAttributeString(id_step, "Recurso") != null) {
                 this.mapa_vista.put("Recurso", rep.getStepAttributeString(id_step, "Recurso"));
@@ -396,6 +462,11 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             }
             if (rep.getStepAttributeString(id_step, "EventoTotal") != null) {
                 this.mapa_vista.put("EventoTotal", rep.getStepAttributeString(id_step, "EventoTotal"));
+            }
+            //Para leer los nuevos atributos
+            int nrfields = rep.countNrStepAttributes( id_step, "name" );
+            for ( int i = 0; i < nrfields; i++ ) {
+                newatr.put(i, new XESPluginField(rep.getJobEntryAttributeString(id_step, "name"), rep.getJobEntryAttributeString(id_step, "fieldname"), rep.getJobEntryAttributeString(id_step, "type"), rep.getJobEntryAttributeString(id_step, "data")));
             }
         } catch (Exception e) {
             throw new KettleException("Unable to load step from repository", e);

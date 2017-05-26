@@ -22,9 +22,16 @@
 
 package org.pentaho.di.sdk.samples.steps.demo;
 
+import org.apache.axis2.databinding.types.Id;
+import org.deckfour.xes.classification.XEventAttributeClassifier;
+import org.deckfour.xes.classification.XEventClassifier;
+import org.deckfour.xes.classification.XEventNameClassifier;
 import org.deckfour.xes.extension.XExtension;
 import org.deckfour.xes.extension.XExtensionManager;
+import org.deckfour.xes.extension.XExtensionParser;
 import org.deckfour.xes.id.XID;
+import org.deckfour.xes.info.XGlobalAttributeNameMap;
+import org.deckfour.xes.info.impl.XAttributeNameMapImpl;
 import org.deckfour.xes.model.*;
 import org.deckfour.xes.model.buffered.XAttributeMapSerializerImpl;
 import org.deckfour.xes.model.buffered.XTraceBufferedImpl;
@@ -64,6 +71,14 @@ public class XESPluginStep extends BaseStep implements StepInterface {
     private Map<XTraceBufferedImpl, Float> mapa_CostTotalTrace;
     private Map<XTraceBufferedImpl, String> mapa_ConceptNameTrace;
     private int rowCount;
+    private Map<Integer, XESPluginField> mapa_newatr; //Mapa de nuevos atributos
+    private XAttributeMapImpl xmap = new XAttributeMapImpl(); //Mapa de nuevos atributos de tipo case
+
+
+
+
+
+
 
     /**
      * The constructor should simply pass on its arguments to the parent class.
@@ -113,6 +128,9 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         this.mapa_CostTotalTrace = new HashMap<>();
         this.mapa_ConceptNameTrace = new HashMap<>();
         this.rowCount = 0;
+        this.mapa_newatr = new HashMap<>();
+
+
 
         IniciarMapaGlobal();
 
@@ -128,6 +146,7 @@ public class XESPluginStep extends BaseStep implements StepInterface {
 //        this.mapaGlobalAtributos.put("groupkey", new XAttributeLiteralImpl("org:group", ""));
         this.mapaGlobalAtributos.put("levelkey", new XAttributeDiscreteImpl("micro:level", 1));
         this.mapaGlobalAtributos.put("currencykey", new XAttributeLiteralImpl("cost:currency", "USD"));
+
     }
 
     /**
@@ -172,13 +191,16 @@ public class XESPluginStep extends BaseStep implements StepInterface {
 
             //asignar a cada trace su costo total
             for (XTraceBufferedImpl xtrace : this.lista_traces) {
-                XAttributeMapImpl xmap = new XAttributeMapImpl();
+                XAttributeMapImpl xmapa = new XAttributeMapImpl();
                 //para no obligar a q cada trace tenga un costo, porq la extension puede no usarse
                 if (this.mapaUsoAtributos.get("totaltrace") != null) {
-                    xmap.put("totaltracekey", new XAttributeContinuousImpl("cost:total", this.mapa_CostTotalTrace.get(xtrace)));
+                    xmapa.put("totaltracekey", new XAttributeContinuousImpl("cost:total", this.mapa_CostTotalTrace.get(xtrace)));
                 }
-                xmap.put("conceptnametrace", new XAttributeLiteralImpl("concept:name", this.mapa_ConceptNameTrace.get(xtrace)));
-                xtrace.setAttributes(xmap);
+                xmapa.put("conceptnametrace", new XAttributeLiteralImpl("concept:name", this.mapa_ConceptNameTrace.get(xtrace)));
+
+                /// /añadiendo el mapa de nuevos atributos de tipo case a la traza
+                xmapa.putAll(xmap);
+                xtrace.setAttributes(xmapa);
             }
 
             //se serializa una vez que se han convertido todos los datos
@@ -222,6 +244,7 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         String valor_marcatiempo = "";
         String valor_actividad = "";
         String valor_cicloVida = "";
+        String valor_actividad_instance = "";
         String valor_recurso = "";
         String valor_rol = "";
         String valor_grupo = "";
@@ -231,9 +254,13 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         String valor_Moneda = "";
         String valor_TotalTrace = "";
         String valor_TotalEvent = "";
+        String valor_newarib = "";
+
 
         //Asignandole a mapa_columnas el valor q viene desde la vista:
         this.mapa_columnas = meta.getMapa_vista();
+        //Para trabajar los nuevos atributos
+        this.mapa_newatr = meta.getNewatr();
 
         for (int i = 0; i < nombresColumnas.length; i++) {
             //en dependencia del dato q sea adicionarlo al map como el tipo de atributo q es
@@ -272,7 +299,16 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                     map.put("CicloVidaKey", new XAttributeLiteralImpl("lifecycle:transition", valor_cicloVida));
                     this.mapaUsoAtributos.put("lifecycle", true);
                 }
-            } else if (nombresColumnas[i].equalsIgnoreCase(this.mapa_columnas.get("Recurso"))) {
+            }else if (nombresColumnas[i].equalsIgnoreCase(this.mapa_columnas.get("Activity_instans"))){
+                //Revizar OPENXES para manejar esto
+                valor_actividad_instance = DescifrarPalabra(r[i]);
+                if (!valor_actividad_instance.isEmpty() && !valor_actividad_instance.equals("null")) {
+                   map.put("Actividad_InstanceKey", new XAttributeLiteralImpl("concept:instance", valor_actividad_instance));
+                } else {
+                    throw new KettleException(BaseMessages.getString(PKG, "XESPlugin.Exceptions.ActivityNotFound") + " SOURCELINE: " + this.rowCount);
+                }
+            }
+            else if (nombresColumnas[i].equalsIgnoreCase(this.mapa_columnas.get("Recurso"))) {
                 valor_recurso = DescifrarPalabra(r[i]);
                 if (!valor_recurso.isEmpty() && !valor_recurso.equals("null")) {
                     map.put("RecursoKey", new XAttributeLiteralImpl("org:resource", valor_recurso));
@@ -341,6 +377,48 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                 if (!valor_TotalTrace.isEmpty() && !valor_TotalTrace.equals("null")) {
                     this.mapaUsoAtributos.put("totaltrace", true);
                 }
+            }else {
+                // Para el trabajo con los nuevos atributos
+                for (int k=0;k<mapa_newatr.size();k++){
+                    if (nombresColumnas[i].equalsIgnoreCase(this.mapa_newatr.get(k).getName())){
+                        valor_newarib = DescifrarPalabra(r[i]);
+                        if (!valor_newarib.isEmpty() && !valor_newarib.equals("null")) {
+                            if (mapa_newatr.get(k).getTypename().equalsIgnoreCase("Activity")) {
+                                //Si son de tipo activity comprobar el tipo de dato
+                                if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("boolean")) {
+                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeBooleanImpl(mapa_newatr.get(k).getFieldName(), Boolean.parseBoolean(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("String")) {
+                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeLiteralImpl(mapa_newatr.get(k).getFieldName(), valor_newarib));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Integer")) {
+                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeDiscreteImpl(mapa_newatr.get(k).getFieldName(), Integer.parseInt(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Date")) {
+                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeTimestampImpl(mapa_newatr.get(k).getFieldName(), Date.parse(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Float")) {
+                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeContinuousImpl(mapa_newatr.get(k).getFieldName(), Float.parseFloat(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("ID")) {
+                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeLiteralImpl(mapa_newatr.get(k).getFieldName(), valor_newarib)); //Convertir a ID
+                                }
+                            }
+                            else if (mapa_newatr.get(k).getTypename().equalsIgnoreCase("Case")){
+                                //Si son de tipo case comprobar el tipo de dato
+                                if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("boolean")) {
+                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeBooleanImpl(mapa_newatr.get(k).getFieldName(), Boolean.parseBoolean(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("String")) {
+                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeLiteralImpl(mapa_newatr.get(k).getFieldName(), valor_newarib));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Integer")) {
+                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeDiscreteImpl(mapa_newatr.get(k).getFieldName(), Integer.parseInt(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Date")) {
+                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeTimestampImpl(mapa_newatr.get(k).getFieldName(), Date.parse(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Float")) {
+                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeContinuousImpl(mapa_newatr.get(k).getFieldName(), Float.parseFloat(valor_newarib)));
+                                } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("ID")) {
+                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeLiteralImpl(mapa_newatr.get(k).getFieldName(), valor_newarib)); //Convertir a ID
+                                }
+                            }
+                        }
+                    }
+                }
+
             }
         }
 
@@ -374,18 +452,18 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                 //actualizando mapa con costo total de trace
                 this.mapa_CostTotalTrace.put(trace, Float.parseFloat(valor_TotalTrace));
             }
-        } else {
-            //Pseudo-codigo:: ;)
-            //"pos" tiene la posicion de lista de traces en la q se trata a esa IP (pos es "String")
-            // se vincula el event con el trace q esta en esa posicion devuelta
+            } else {
+                //Pseudo-codigo:: ;)
+                //"pos" tiene la posicion de lista de traces en la q se trata a esa IP (pos es "String")
+                // se vincula el event con el trace q esta en esa posicion devuelta
 
-            this.lista_traces.get(Integer.parseInt(pos_lista_traces)).add(event);
+                this.lista_traces.get(Integer.parseInt(pos_lista_traces)).add(event);
 
-            if (!valor_TotalTrace.isEmpty()) {
-                //actualizando mapa con costo total de trace
-                this.mapa_CostTotalTrace.put(this.lista_traces.get(Integer.parseInt(pos_lista_traces)), Float.parseFloat(valor_TotalTrace));
+                if (!valor_TotalTrace.isEmpty()) {
+                    //actualizando mapa con costo total de trace
+                    this.mapa_CostTotalTrace.put(this.lista_traces.get(Integer.parseInt(pos_lista_traces)), Float.parseFloat(valor_TotalTrace));
+                }
             }
-        }
 
 
         //////////////DE AKI PA'BAJO EL MISMO COMPORTAMIENTO DEL DUMMY-PLUGIN////////////////////////////
@@ -410,7 +488,7 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         }
         return false;
     }
-
+    //Mtodo para obtener el valor de la celda
     private String DescifrarPalabra(Object arr) {
         if (arr instanceof byte[]) { //works !
             byte[] input = ((byte[]) arr);
@@ -418,7 +496,7 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         }
         return String.valueOf(arr);
     }
-
+    //Metodo para conocer que extension se ha usado
     private void UsoAtributos() {
         if (this.mapaUsoAtributos.get("concept") != null) {
 //            this.log.getGlobalEventAttributes().add(this.mapaGlobalAtributos.get("conceptkey"));
