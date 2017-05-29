@@ -171,13 +171,16 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
 
     private TableView wFields;
     private FormData fdFields;
-    private String [] Tipos={"","Case","Activity"};
-    private String [] Datos={"","String","Integer", "Date", "Float", "Boolean", "ID"};
+    private String [] Tipos={"Case","Activity"};
+    private String [] Datos={"String","Integer", "Date", "Float", "Boolean", "ID"};
     private int cont=0;
 
     private ColumnInfo[] colinf;
     private Map<Integer,XESPluginField> newatrib = new HashMap<>();
     int numFields;
+
+
+
 
     /**
      * The constructor should simply invoke super() and save the incoming meta
@@ -1127,19 +1130,33 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
                 cmbGrupo.setText(meta.getMapa_vista().get("Grupo"));
             }
             if (meta.getMapa_vista().get("RutaSalida") != null) {
-                wRutaSalida.setText(meta.getMapa_vista().get("RutaSalida"));
+                if (!meta.getMapa_vista().get("RutaSalida1").equalsIgnoreCase("pepe")) {
+                    wRutaSalida.setText(meta.getMapa_vista().get("RutaSalida1"));
+                }else{
+                    wRutaSalida.setText(meta.getMapa_vista().get("RutaSalida"));
+                }
             }
             if (meta.getMapa_vista().get("MarcaTiempo") != null) {
                 cmbTimeStamp.setText(meta.getMapa_vista().get("MarcaTiempo"));
             }
             if (meta.getMapa_vista().get("RegexMarcaTiempo") != null) {
-                wNuevaRegex1.setEnabled(true);
-                wlNuevaRegex.setEnabled(true);
-                btnNuevaRegex.setSelection(true);
-                wNuevaRegex1.setText(meta.getMapa_vista().get("RegexMarcaTiempo"));
+                if (meta.getMapa_vista().get("RegexMarcaTiempo1") != null) {
+                    wNuevaRegex1.setEnabled(true);
+                    wlNuevaRegex.setEnabled(true);
+                    btnNuevaRegex.setSelection(true);
+                    wNuevaRegex1.setText(meta.getMapa_vista().get("RegexMarcaTiempo1"));
 
-                wlRegex.setEnabled(false);
-                cmbregexTimeStamp.setEnabled(false);
+                    wlRegex.setEnabled(false);
+                    cmbregexTimeStamp.setEnabled(false);
+                }else{
+                    wNuevaRegex1.setEnabled(true);
+                    wlNuevaRegex.setEnabled(true);
+                    btnNuevaRegex.setSelection(true);
+                    wNuevaRegex1.setText(meta.getMapa_vista().get("RegexMarcaTiempo"));
+
+                    wlRegex.setEnabled(false);
+                    cmbregexTimeStamp.setEnabled(false);
+                }
             }
             if (meta.getMapa_vista().get("Nivel") != null) {
                 cmbLevel.setText(meta.getMapa_vista().get("Nivel"));
@@ -1177,15 +1194,72 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
     //**
     // Metodo para Adicionar Atributo desde la tabla
     //**
-    private void getInfo(){
+    private int getInfo(int response_code){
          numFields = wFields.nrNonEmpty();
         for(int k=0;k<numFields;k++){
-
             TableItem item=wFields.getNonEmpty(k);
-            XESPluginField field = new XESPluginField(item.getText(1),item.getText(2), item.getText(3), item.getText(4));
+            //Lanzar excepcion
+            MessageBox dialog_error = new MessageBox(shell, SWT.OK | SWT.ICON_ERROR);
+
+            //Flags por items
+            boolean flag1 = false;
+            boolean flag3 = false;
+            boolean flag4 = false;
+            //Validaciones
+            for (int i=0;i<nombresDeColumnas.length;i++) {
+                if (item.getText(1).equalsIgnoreCase(nombresDeColumnas[i])) {
+                    flag1 = true;
+                }
+            }
+            if (item.getText(2).isEmpty()){
+                // Excepcion del campo nombre
+                dialog_error.setText(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.NameColumn.Title"));
+                dialog_error.setMessage(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.NameColumn.Description"));
+                response_code = dialog_error.open();
+                return response_code;
+            }
+
+            for (int i=0;i<Tipos.length;i++) {
+                if (item.getText(3).equalsIgnoreCase(Tipos[i])) {
+                    flag3 = true;
+                }
+            }
+            for (int i=0;i<Datos.length;i++) {
+                if (item.getText(4).equalsIgnoreCase(Datos[i])) {
+                    flag4 = true;
+                }
+            }
+            if (!flag1){
+                //Excepcion del campo entrada
+                dialog_error.setText(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.fieldColumn.Title"));
+                dialog_error.setMessage(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.fieldColumn.Description"));
+                response_code = dialog_error.open();
+                return response_code;
+            }
+            if (!flag3) {
+                //Excepcion del campo tipo de atributo
+                dialog_error.setText(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.TypeColumn.Title"));
+                dialog_error.setMessage(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.TypeColumn.Description"));
+                response_code = dialog_error.open();
+                return response_code;
+            }
+            if (!flag4) {
+                //Excepcion del campo tipo de dato
+                dialog_error.setText(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.DataColumn.Title"));
+                dialog_error.setMessage(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.DataColumn.Description"));
+                response_code = dialog_error.open();
+                return response_code;
+            }
+
+        }
+        for(int k=0;k<numFields;k++){
+            //Inserccion de la fila
+            TableItem item=wFields.getNonEmpty(k);
+            XESPluginField field = new XESPluginField(item.getText(1), item.getText(2), item.getText(3), item.getText(4));
             newatrib.put(cont, field);
             cont++;
         }
+        return response_code;
     }
 
     /**
@@ -1213,13 +1287,13 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
 //        int test = cmbCicloVida.getSelectionIndex();
 
         MessageBox dialog_error = new MessageBox(shell, SWT.OK | SWT.ICON_ERROR);
-
+        int response_code = 0;
         //metodo para adicionar nuvos atributos
-        getInfo();
+        response_code = getInfo(response_code);
 
         //Validaciones de datos
         Map<String, String> map_vista = new HashMap<>();
-        int response_code = 0;
+        //int response_code = 0;
 
         if (cmbIProceso.getSelectionIndex() != -1) {
             map_vista.put("InstanciaProceso", cmbIProceso.getItem(cmbIProceso.getSelectionIndex()));
@@ -1242,7 +1316,14 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
                 }
             } else {
                 if (wNuevaRegex1.getText() != null) {
-                    map_vista.put("RegexMarcaTiempo", wNuevaRegex1.getText().trim());
+                    if (wNuevaRegex1.getText().startsWith("$")){
+                        FileDialog dialog = new FileDialog( shell, SWT.SAVE );
+                        dialog.setText(transMeta.environmentSubstitute(wNuevaRegex1.getText().trim()));
+                        map_vista.put("RegexMarcaTiempo", dialog.getText());
+                        map_vista.put("RegexMarcaTiempo1", wRutaSalida.getText().trim());
+                    }else{
+                        map_vista.put("RegexMarcaTiempo", wNuevaRegex1.getText());
+                    }
                 }else{
                     dialog_error.setText(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.GenericError.Title"));
                     dialog_error.setMessage(BaseMessages.getString(PKG, "XESPlugin.Messages.Shell.TimestampRegexNotSpecified.Description"));
@@ -1263,9 +1344,6 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         }
         if (cmbActivityInstans.getSelectionIndex() != -1){
             map_vista.put("Activity_instans", cmbActivityInstans.getItem(cmbActivityInstans.getSelectionIndex()));
-        }
-        if (cmbActivityInstans.getSelectionIndex() != -1) {
-            map_vista.put("Activity_Instans", cmbActivityInstans.getItem(cmbActivityInstans.getSelectionIndex()));
         }
         if (cmbRecurso.getSelectionIndex() != -1) {
             map_vista.put("Recurso", cmbRecurso.getItem(cmbRecurso.getSelectionIndex()));
@@ -1300,7 +1378,15 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
             map_vista.put("EventoTotal", cmbCostTotalEvent.getItem(cmbCostTotalEvent.getSelectionIndex()));
         }
         if (this.wRutaSalida.getText() != null) {
-            map_vista.put("RutaSalida", this.wRutaSalida.getText().trim());
+            if (wRutaSalida.getText().startsWith("$")){
+                FileDialog dialog1 = new FileDialog( shell, SWT.SAVE );
+                dialog1.setText(transMeta.environmentSubstitute(wRutaSalida.getText().trim()));
+                map_vista.put("RutaSalida", dialog1.getText()+"output.xes");
+                map_vista.put("RutaSalida1", wRutaSalida.getText().trim());
+            }else{
+                map_vista.put("RutaSalida", wRutaSalida.getText());
+                map_vista.put("RutaSalida1", "pepe");
+            }
         }
             //Guardando mapas de entrada de datos
         meta.setMapa_vista(map_vista);

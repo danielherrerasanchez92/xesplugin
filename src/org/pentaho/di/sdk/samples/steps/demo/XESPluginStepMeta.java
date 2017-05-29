@@ -65,7 +65,7 @@ import javax.xml.crypto.dsig.XMLObject;
 
 @Step(
         id = "XESPlugin",
-        image = "org/pentaho/di/sdk/samples/steps/demo/resources/plugin-image.svg",
+        image = "org/pentaho/di/sdk/samples/steps/demo/resources/XES.svg",
         name = "XESPlugin",
         description = "Exports XES file from any datasource.",
         categoryDescription = "i18n:org.pentaho.di.trans.step:BaseStep.Category.Output"
@@ -211,13 +211,18 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
         if (this.mapa_vista.get("RutaSalida") != null) {
             stringBuffer.append(XMLHandler.addTagValue("RutaSalida", this.mapa_vista.get("RutaSalida")));
         }
+        if (this.mapa_vista.get("RutaSalida1") != null) {
+            stringBuffer.append(XMLHandler.addTagValue("RutaSalida1", this.mapa_vista.get("RutaSalida1")));
+        }
         if (this.mapa_vista.get("MarcaTiempo") != null) {
             stringBuffer.append(XMLHandler.addTagValue("MarcaTiempo", this.mapa_vista.get("MarcaTiempo")));
         }
         if (this.mapa_vista.get("RegexMarcaTiempo") != null) {
             stringBuffer.append(XMLHandler.addTagValue("RegexMarcaTiempo", this.mapa_vista.get("RegexMarcaTiempo")));
         }
-
+        if (this.mapa_vista.get("RegexMarcaTiempo1") != null) {
+            stringBuffer.append(XMLHandler.addTagValue("RegexMarcaTiempo1", this.mapa_vista.get("RegexMarcaTiempo1")));
+        }
         if (this.mapa_vista.get("ID") != null) {
             stringBuffer.append(XMLHandler.addTagValue("ID", this.mapa_vista.get("ID")));
         }
@@ -289,13 +294,18 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RutaSalida")) != null) {
                 this.mapa_vista.put("RutaSalida", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RutaSalida")));
             }
+            if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RutaSalida1")) != null) {
+                this.mapa_vista.put("RutaSalida1", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RutaSalida1")));
+            }
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "MarcaTiempo")) != null) {
                 this.mapa_vista.put("MarcaTiempo", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "MarcaTiempo")));
             }
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RegexMarcaTiempo")) != null) {
                 this.mapa_vista.put("RegexMarcaTiempo", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RegexMarcaTiempo")));
             }
-
+            if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RegexMarcaTiempo1")) != null) {
+                this.mapa_vista.put("RegexMarcaTiempo1", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "RegexMarcaTiempo1")));
+            }
             if (XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "ID")) != null) {
                 this.mapa_vista.put("ID", XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "ID")));
             }
@@ -363,15 +373,20 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             if (!this.mapa_vista.get("RutaSalida").equalsIgnoreCase("")) { //por ser un puto string
                 rep.saveStepAttribute(id_transformation, id_step, "RutaSalida", this.mapa_vista.get("RutaSalida"));
             }
+            if (!this.mapa_vista.get("RutaSalida1").equalsIgnoreCase("")) { //por ser un puto string
+                rep.saveStepAttribute(id_transformation, id_step, "RutaSalida1", this.mapa_vista.get("RutaSalida1"));
+            }
             if (this.mapa_vista.get("MarcaTiempo") != null) {
                 rep.saveStepAttribute(id_transformation, id_step, "MarcaTiempo", this.mapa_vista.get("MarcaTiempo"));
             }
             if (this.mapa_vista.get("RegexMarcaTiempo") != null) {
                 rep.saveStepAttribute(id_transformation, id_step, "RegexMarcaTiempo", this.mapa_vista.get("RegexMarcaTiempo"));
             }
-
+            if (this.mapa_vista.get("RegexMarcaTiempo1") != null) {
+                rep.saveStepAttribute(id_transformation, id_step, "RegexMarcaTiempo1", this.mapa_vista.get("RegexMarcaTiempo1"));
+            }
             if (this.mapa_vista.get("ID") != null) {
-                rep.saveStepAttribute(id_transformation, id_step, "ID", this.mapa_vista.get("ID"));
+               rep.saveStepAttribute(id_transformation, id_step, "ID", this.mapa_vista.get("ID"));
             }
             if (this.mapa_vista.get("Nivel") != null) {
                 rep.saveStepAttribute(id_transformation, id_step, "Nivel", this.mapa_vista.get("Nivel"));
@@ -386,16 +401,16 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
                 rep.saveStepAttribute(id_transformation, id_step, "TraceTotal", this.mapa_vista.get("TraceTotal"));
             }
             if (this.mapa_vista.get("EventoTotal") != null) {
-                rep.saveStepAttribute(id_transformation, id_step, "EventoTotal", this.mapa_vista.get("EventoTotal"));
+               rep.saveStepAttribute(id_transformation, id_step, "EventoTotal", this.mapa_vista.get("EventoTotal"));
             }
             //Para guardar los nuevos atributos
-            for (int k=0; k<cont;k++){
-                XESPluginField f = newatr.get(k);
+            for (int k=0; k<newatr.size();k++){
+                XESPluginField f = this.newatr.get(k);
                 if (f.getName() !=null) {
-                    rep.saveStepAttribute(id_transformation, id_step, "name", f.getName());
-                    rep.saveStepAttribute(id_transformation, id_step, "fieldname", f.getFieldName());
-                    rep.saveStepAttribute(id_transformation, id_step, "type", f.getTypename());
-                    rep.saveStepAttribute(id_transformation, id_step, "data", f.getDatodname());
+                    rep.saveStepAttribute(id_transformation, id_step, k,"name", f.getName());
+                    rep.saveStepAttribute(id_transformation, id_step, k,"fieldname", f.getFieldName());
+                    rep.saveStepAttribute(id_transformation, id_step, k,"type", f.getTypename());
+                    rep.saveStepAttribute(id_transformation, id_step, k,"data", f.getDatodname());
                 }
             }
         } catch (Exception e) {
@@ -438,13 +453,18 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
             if (rep.getStepAttributeString(id_step, "RutaSalida") != null) {
                 this.mapa_vista.put("RutaSalida", rep.getStepAttributeString(id_step, "RutaSalida"));
             }
+            if (rep.getStepAttributeString(id_step, "RutaSalida1") != null) {
+                this.mapa_vista.put("RutaSalida1", rep.getStepAttributeString(id_step, "RutaSalida1"));
+            }
             if (rep.getStepAttributeString(id_step, "MarcaTiempo") != null) {
                 this.mapa_vista.put("MarcaTiempo", rep.getStepAttributeString(id_step, "MarcaTiempo"));
             }
             if (rep.getStepAttributeString(id_step, "RegexMarcaTiempo") != null) {
                 this.mapa_vista.put("RegexMarcaTiempo", rep.getStepAttributeString(id_step, "RegexMarcaTiempo"));
             }
-
+            if (rep.getStepAttributeString(id_step, "RegexMarcaTiempo1") != null) {
+                this.mapa_vista.put("RegexMarcaTiempo1", rep.getStepAttributeString(id_step, "RegexMarcaTiempo1"));
+            }
             if (rep.getStepAttributeString(id_step, "ID") != null) {
                 this.mapa_vista.put("ID", rep.getStepAttributeString(id_step, "ID"));
             }
@@ -464,9 +484,10 @@ public class XESPluginStepMeta extends BaseStepMeta implements StepMetaInterface
                 this.mapa_vista.put("EventoTotal", rep.getStepAttributeString(id_step, "EventoTotal"));
             }
             //Para leer los nuevos atributos
-            int nrfields = rep.countNrStepAttributes( id_step, "name" );
+            int nrfields = rep.countNrStepAttributes( id_step, "fieldname" );
             for ( int i = 0; i < nrfields; i++ ) {
-                newatr.put(i, new XESPluginField(rep.getJobEntryAttributeString(id_step, "name"), rep.getJobEntryAttributeString(id_step, "fieldname"), rep.getJobEntryAttributeString(id_step, "type"), rep.getJobEntryAttributeString(id_step, "data")));
+                XESPluginField f = new XESPluginField(rep.getStepAttributeString(id_step,i ,"name"), rep.getStepAttributeString(id_step,i ,"fieldname"), rep.getStepAttributeString(id_step,i ,"type"), rep.getStepAttributeString(id_step,i ,"data"));
+                this.newatr.put(i, f);
             }
         } catch (Exception e) {
             throw new KettleException("Unable to load step from repository", e);

@@ -70,9 +70,9 @@ public class XESPluginStep extends BaseStep implements StepInterface {
     private Map<String, XID> mapaID;
     private Map<XTraceBufferedImpl, Float> mapa_CostTotalTrace;
     private Map<XTraceBufferedImpl, String> mapa_ConceptNameTrace;
+    private Map<XTraceBufferedImpl, XAttributeMapImpl> mapa_Atributos_de_trazas;// Mapa para guardar los nuevos atributos por traza
     private int rowCount;
     private Map<Integer, XESPluginField> mapa_newatr; //Mapa de nuevos atributos
-    private XAttributeMapImpl xmap = new XAttributeMapImpl(); //Mapa de nuevos atributos de tipo case
 
 
 
@@ -127,6 +127,7 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         this.mapaID = new HashMap<>();
         this.mapa_CostTotalTrace = new HashMap<>();
         this.mapa_ConceptNameTrace = new HashMap<>();
+        this.mapa_Atributos_de_trazas = new HashMap<>();
         this.rowCount = 0;
         this.mapa_newatr = new HashMap<>();
 
@@ -192,6 +193,8 @@ public class XESPluginStep extends BaseStep implements StepInterface {
             //asignar a cada trace su costo total
             for (XTraceBufferedImpl xtrace : this.lista_traces) {
                 XAttributeMapImpl xmapa = new XAttributeMapImpl();
+                XAttributeMapImpl xmap;
+
                 //para no obligar a q cada trace tenga un costo, porq la extension puede no usarse
                 if (this.mapaUsoAtributos.get("totaltrace") != null) {
                     xmapa.put("totaltracekey", new XAttributeContinuousImpl("cost:total", this.mapa_CostTotalTrace.get(xtrace)));
@@ -199,6 +202,7 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                 xmapa.put("conceptnametrace", new XAttributeLiteralImpl("concept:name", this.mapa_ConceptNameTrace.get(xtrace)));
 
                 /// /añadiendo el mapa de nuevos atributos de tipo case a la traza
+                xmap = this.mapa_Atributos_de_trazas.get(xtrace);
                 xmapa.putAll(xmap);
                 xtrace.setAttributes(xmapa);
             }
@@ -261,6 +265,8 @@ public class XESPluginStep extends BaseStep implements StepInterface {
         this.mapa_columnas = meta.getMapa_vista();
         //Para trabajar los nuevos atributos
         this.mapa_newatr = meta.getNewatr();
+        //Mapa de nuevos atributos de tipo case
+        XAttributeMapImpl xmap = new XAttributeMapImpl();
 
         for (int i = 0; i < nombresColumnas.length; i++) {
             //en dependencia del dato q sea adicionarlo al map como el tipo de atributo q es
@@ -392,7 +398,12 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Integer")) {
                                     map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeDiscreteImpl(mapa_newatr.get(k).getFieldName(), Integer.parseInt(valor_newarib)));
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Date")) {
-                                    map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeTimestampImpl(mapa_newatr.get(k).getFieldName(), Date.parse(valor_newarib)));
+                                    try {
+                                        Date date = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse(valor_newarib);
+                                        map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeTimestampImpl(mapa_newatr.get(k).getFieldName(), date));
+                                    } catch (ParseException e) {
+                                        e.printStackTrace();
+                                    }
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Float")) {
                                     map.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeContinuousImpl(mapa_newatr.get(k).getFieldName(), Float.parseFloat(valor_newarib)));
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("ID")) {
@@ -408,7 +419,12 @@ public class XESPluginStep extends BaseStep implements StepInterface {
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Integer")) {
                                     xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeDiscreteImpl(mapa_newatr.get(k).getFieldName(), Integer.parseInt(valor_newarib)));
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Date")) {
-                                    xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeTimestampImpl(mapa_newatr.get(k).getFieldName(), Date.parse(valor_newarib)));
+                                    try {
+                                        Date date = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse(valor_newarib);
+                                        xmap.put(this.mapa_newatr.get(k).getFieldName(), new XAttributeTimestampImpl(mapa_newatr.get(k).getFieldName(), date));
+                                    } catch (ParseException e) {
+                                        e.printStackTrace();
+                                    }
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("Float")) {
                                     xmap.put(mapa_newatr.get(k).getFieldName(), new XAttributeContinuousImpl(mapa_newatr.get(k).getFieldName(), Float.parseFloat(valor_newarib)));
                                 } else if (this.mapa_newatr.get(k).getDatodname().equalsIgnoreCase("ID")) {
@@ -444,6 +460,8 @@ public class XESPluginStep extends BaseStep implements StepInterface {
             trace.add(event);
             this.lista_traces.add(trace);
 
+            //Adicionando Atributos de Case
+            this.mapa_Atributos_de_trazas.put(trace, xmap);
             //actualizando mapaIPRegistradas
             this.mapa_IPRegistradas.put(valorIP, String.valueOf(mapa_IPRegistradas.size())); //=mente pudiera ser size de lista_traces
             //adicionando el concept name al trace
