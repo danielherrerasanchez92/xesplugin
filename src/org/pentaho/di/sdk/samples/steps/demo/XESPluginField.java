@@ -12,12 +12,20 @@ public class XESPluginField implements Cloneable {
     private String fieldname;
     private String typename;
     private String datodname;
+    private boolean classifier;
 
     public XESPluginField( String name,String fieldname, String typename, String datodname) {
         this.name = name;
         this.fieldname = fieldname;
         this.typename = typename;
         this.datodname = datodname;
+    }
+    public XESPluginField( String name,String fieldname, String typename, String datodname, boolean classifier) {
+        this.name = name;
+        this.fieldname = fieldname;
+        this.typename = typename;
+        this.datodname = datodname;
+        this.classifier = classifier;
     }
 
     public XESPluginField() {
@@ -82,4 +90,13 @@ public class XESPluginField implements Cloneable {
     public void setName(String name) {
         this.name = name;
     }
+
+    public boolean isClassifier() {
+        return classifier;
+    }
+
+    public void setClassifier(boolean classifier) {
+        this.classifier = classifier;
+    }
+
 }

@@ -1040,7 +1040,7 @@ public class XESPluginStepDialog extends BaseStepDialog implements StepDialogInt
         wFieldsComp.setLayout( fieldsLayout );
         props.setLook( wFieldsComp );
 
-        final int FieldsRows = 10;
+        final int FieldsRows = meta.getNewatr().size();
         //Creando columnas
         colinf =
                 new ColumnInfo[] {

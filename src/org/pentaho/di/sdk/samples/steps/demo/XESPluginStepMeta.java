@@ -66,7 +66,7 @@ import javax.xml.crypto.dsig.XMLObject;
 @Step(
         id = "XESPlugin",
         image = "org/pentaho/di/sdk/samples/steps/demo/resources/XES.svg",
-        name = "XESPlugin",
+        name = "XES Output",
         description = "Exports XES file from any datasource.",
         categoryDescription = "i18n:org.pentaho.di.trans.step:BaseStep.Category.Output"
 )
