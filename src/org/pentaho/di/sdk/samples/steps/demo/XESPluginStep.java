@@ -204,6 +204,10 @@ public class XESPluginStep extends BaseStep implements StepInterface {
             try {
                 this.log.addAll(this.lista_traces);
 
+                XAttributeMapImpl xmapaAtributosLog = new XAttributeMapImpl();
+                xmapaAtributosLog.put("conceptnametrace", new XAttributeLiteralImpl("concept:name", this.getStepname()));
+                this.log.setAttributes(xmapaAtributosLog);
+
                 //trabajando con las rutas de salida
                 String ruta = this.mapa_columnas.get("RutaSalida");
                 if (ruta == null || ruta.equalsIgnoreCase("")) {
