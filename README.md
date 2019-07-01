@@ -22,7 +22,7 @@ The ID tab contains the visual elements to relate the plugin with the event log 
 Process Tab:   
 ![process tab](http://i.imgur.com/uHCmjbS.jpg)
 
-The process tab contains the visual elements to relate the plugin with the event log in terms of Process Instance (Case), Activity and Lifecycle. Each combo box displays information about columns from the data flow. The Case and Activity fields are mandatory elements to fill in order for the plugin to work. If there is a blank field in the incoming data from Case or Activity columns, an an error will be launched in the Pentaho console, showing the line of the event log where the error occurred.  
+The process tab contains the visual elements to relate the plugin with the event log in terms of Process Instance (Case), Activity and Lifecycle. Each combo box displays information about columns from the data flow. The Case and Activity fields are mandatory elements to fill in order for the plugin to work. If there is a blank field in the incoming data from Case or Activity columns, an error will be launched in the Pentaho console, showing the line of the event log where the error occurred.  
 
 Timestamp tab:  
 ![timestamp tab](http://i.imgur.com/TYLawiI.jpg)
@@ -35,7 +35,7 @@ The timestamp tab contains the visual elements to relate the plugin with the eve
 |  dd |    MM   |  yyyy |  hh   |   mm    |   ss   |  
  
 
-A valid example accepted by the application would be dd/MM/yyyy hh:mm:s. XESPlugin uses the Java classes SimpleDateFormat and Date to interpret dates and add those dates to the generated XES files. More information about creating dates expressions can be found at here. (https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html) If there is an error while matching the date incoming from the data source with the format from the plugin, an an error will be launched in the Pentaho console, showing the line of the event log where the error occurred.  
+A valid example accepted by the application would be dd/MM/yyyy hh:mm:s. XESPlugin uses the Java classes SimpleDateFormat and Date to interpret dates and add those dates to the generated XES files. More information about creating dates expressions can be found at here. (https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html) If there is an error while matching the date incoming from the data source with the format from the plugin, an error will be launched in the Pentaho console, showing the line of the event log where the error occurred.  
 
 Resources tab:    
 ![res tab](http://i.imgur.com/pTUU38d.jpg)
